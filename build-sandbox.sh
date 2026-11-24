@@ -22,3 +22,6 @@ podman build -f Containerfile -t "${IMAGE_NAME}:${IMAGE_TAG}" \
   .
 
 echo "Build successful: ${IMAGE_NAME}:${IMAGE_TAG}"
+
+# Sanity-check the default JDK (JDK 21) inside the new image.
+podman run --rm --pull=never --entrypoint java "${IMAGE_NAME}:${IMAGE_TAG}" -version

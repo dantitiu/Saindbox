@@ -1,9 +1,17 @@
+# ---- JDK 21 source stage ----
+# Debian bookworm only packages OpenJDK 17, so JDK 21 is taken from the official multi-arch
+# Eclipse Temurin image (amd64 and arm64, so it works on the ARM Podman VM too).
+# Bump the tag (e.g. 21.0.x_y-jdk) to pin an exact build; "21-jdk" tracks the latest 21 update.
+ARG JDK21_IMAGE=docker.io/library/eclipse-temurin:21-jdk
+FROM ${JDK21_IMAGE} AS jdk21
+
 FROM docker.io/library/debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # ---- System packages ----
-# openjdk-17 is required by Android Gradle Plugin; unzip/wget are needed by sdkmanager.
+# openjdk-17 stays installed for projects that pin a JDK 17 toolchain; JDK 21 (below) is the
+# default JDK. unzip/wget are needed by sdkmanager.
 # NDK host tools (clang wrappers, codegen binaries) are prebuilt for x86_64.
 # On the ARM Podman VM we need QEMU user-mode emulation + the x86_64 dynamic
 # linker so the kernel can transparently execute those foreign binaries via
@@ -43,6 +51,15 @@ RUN set -eux; \
     useradd --uid "${USER_UID}" --gid "${USER_GID}" -m -s /bin/zsh "${USERNAME}"; \
     mkdir -p /workspace "/home/${USERNAME}/.claude"; \
     chown -R "${USERNAME}:${USER_GID}" /workspace "/home/${USERNAME}/.claude"
+
+# ---- JDK 21 (default JDK) ----
+# Installed under /usr/lib/jvm next to the Debian JDK 17, so Gradle's toolchain auto-detection
+# finds both, and the path is the same on amd64 and arm64. JAVA_HOME and PATH make it the JDK
+# used by Gradle, sdkmanager and any shell.
+ENV JAVA_HOME=/usr/lib/jvm/temurin-21-jdk
+COPY --from=jdk21 /opt/java/openjdk ${JAVA_HOME}
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+RUN java -version && javac -version
 
 # ---- Android SDK ----
 # Bump ANDROID_API_LEVEL here when you move to a new platform version.
@@ -127,6 +144,8 @@ ARG CLAUDE_CODE_CHANNEL=latest
 RUN curl -fsSL https://claude.ai/install.sh | bash -s ${CLAUDE_CODE_CHANNEL}
 
 RUN echo 'export PATH="${HOME}/.local/bin:${PATH}"' >> /home/${USERNAME}/.zshrc
+RUN echo 'export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk' >> /home/${USERNAME}/.zshrc
+RUN echo 'export PATH="${JAVA_HOME}/bin:${PATH}"' >> /home/${USERNAME}/.zshrc
 RUN echo 'export ANDROID_HOME=/opt/android-sdk'    >> /home/${USERNAME}/.zshrc
 RUN echo 'export ANDROID_SDK_ROOT=/opt/android-sdk' >> /home/${USERNAME}/.zshrc
 RUN echo 'export ANDROID_NDK_HOME=/opt/android-sdk/ndk/28.0.13004108' >> /home/${USERNAME}/.zshrc

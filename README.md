@@ -9,6 +9,13 @@ Experiment with setting up and running a sandbox environment to run AI agents.
 3. Run `run-sandbox.sh` to start the container and get into the sandbox terminal.
 4. Run `claude` or `clauded` (dangerously skips permissions) and follow the instructions.
 
+### Java:
+The image ships two JDKs under `/usr/lib/jvm`:
+- **JDK 21** (Eclipse Temurin, `/usr/lib/jvm/temurin-21-jdk`) is the default: `JAVA_HOME` and `PATH` point to it, so Gradle and `java` use it.
+- **JDK 17** (Debian OpenJDK) is kept for projects that pin a JDK 17 toolchain; Gradle's toolchain auto-detection finds both.
+
+To pick up a newer JDK 21 update, rebuild with `build-sandbox.sh`; the `JDK21_IMAGE` build arg in the `Containerfile` can pin an exact Temurin tag.
+
 ### Updating the image:
 The container is kept between runs and stays pinned to the image and mounts it was created from, so rebuilding the image or adding a bridge repo doesn't change an existing container.
 After running `build-sandbox.sh` again, or when a bridge mount is missing, `run-sandbox.sh` detects it and offers to recreate the container (or run `run-sandbox.sh --recreate` to skip the prompt).
